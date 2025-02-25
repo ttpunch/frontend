@@ -11,9 +11,10 @@ interface VariableConfig {
 
 interface ConfigFormProps {
   onSubmit: (config: { namespace: string; variables: VariableConfig[] }) => void;
+  buttonText?: string;
 }
 
-export function ConfigForm({ onSubmit }: ConfigFormProps) {
+export const ConfigForm: React.FC<ConfigFormProps> = ({ onSubmit, buttonText = "Submit" }) => {
   const [namespace, setNamespace] = useState<string>('http://example.com/opcua/server');
   const [variables, setVariables] = useState<VariableConfig[]>([{ name: '', value: '' }]);
 
@@ -67,7 +68,7 @@ export function ConfigForm({ onSubmit }: ConfigFormProps) {
           )}
         </div>
       ))}
-      <Button type="submit">Submit Configuration</Button>
+      <Button type="submit">{buttonText}</Button>
     </form>
   );
 }

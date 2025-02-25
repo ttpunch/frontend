@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 
 interface VariableConfig {
   name: string;
-  value: any;
+  value: number | string | boolean;  // Specify allowed types
 }
 
 interface Config {
@@ -17,25 +17,87 @@ interface Config {
 
 export default function Settings() {
   const [message, setMessage] = useState<string>('');
+  const [isError, setIsError] = useState(false);
 
-  const handleConfigSubmit = async (config: Config) => {
+  const handleVariableUpdate = async (config: Config) => {
     try {
-      const response = await api.post('/config', config);
-      setMessage(response.data.message);
+      setIsError(false);
+      setMessage('Updating variable...');
+      
+      const variable = config.variables[0]?.name || '';
+      const value = config.variables[0]?.value || '';
+      
+      const response = await api.post(`/data?variable=${encodeURIComponent(variable)}&value=${encodeURIComponent(value)}`);
+      
+      setIsError(false);
+      setMessage(response.data.message || 'Variable updated successfully');
     } catch (error: any) {
-      setMessage(`Error: ${error.response?.data?.detail || error.message}`);
+      handleError(error);
     }
+  };
+
+  const handleVariableCreate = async (config: Config) => {
+    try {
+      setIsError(false);
+      setMessage('Creating variable...');
+      
+      const variable = config.variables[0]?.name || '';
+      const value = config.variables[0]?.value || '';
+      const validatedValue = value;
+      
+      await api.post('/config/variable', {
+        name: variable,
+        value: validatedValue
+      });
+      
+      setIsError(false);
+      setMessage('Variable created successfully');
+    } catch (error: any) {
+      handleError(error);
+    }
+  };
+
+  const handleError = (error: any) => {
+    setIsError(true);
+    let errorMessage = 'Failed to process request';
+    
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail;
+      if (Array.isArray(detail)) {
+        errorMessage = detail.map(err => err.msg || 'Unknown error').join(', ');
+      } else if (typeof detail === 'object' && detail !== null) {
+        errorMessage = detail.msg || detail.message || JSON.stringify(detail);
+      } else {
+        errorMessage = String(detail);
+      }
+    }
+    
+    setMessage(errorMessage);
+    console.error('Operation error:', error);
   };
 
   return (
     <div className="container mx-auto p-4">
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
-          <CardTitle>Configure Namespace and Variables</CardTitle>
+          <CardTitle>Create New Variable</CardTitle>
         </CardHeader>
         <CardContent>
-          <ConfigForm onSubmit={handleConfigSubmit} />
-          {message && <p className="text-blue-500 mt-4">{message}</p>}
+          <ConfigForm onSubmit={handleVariableCreate} buttonText="Create Variable" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Variable Value</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ConfigForm onSubmit={handleVariableUpdate} buttonText="Update Value" />
+          {message && (
+            <p className={`mt-4 ${isError ? 'text-red-500' : 'text-green-500'}`}>
+              {message}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
