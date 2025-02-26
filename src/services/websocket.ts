@@ -50,5 +50,17 @@ class WebSocketService {
   }
 }
 
+export const setupWebSocket = (onVariablesUpdate: (variables: any) => void) => {
+    const ws = new WebSocket('ws://localhost:8000/ws');
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'variables_update') {
+            onVariablesUpdate(data.data);
+        }
+    };
+
+    return ws;
+};
 const websocketService = new WebSocketService();
 export default websocketService;

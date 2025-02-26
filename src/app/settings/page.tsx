@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConfigForm } from '@/components/ConfigForm';
 import { api } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -18,6 +18,62 @@ interface Config {
 export default function Settings() {
   const [message, setMessage] = useState<string>('');
   const [isError, setIsError] = useState(false);
+  const [variables, setVariables] = useState<Array<{name: string, value: any}>>([]);
+
+  // Add useEffect to fetch variables on component mount
+  useEffect(() => {
+    // Initial fetch
+    fetchVariables();
+    
+    // Set up polling every 2 seconds
+    const intervalId = setInterval(fetchVariables, 2000);
+    
+    // Cleanup on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const fetchVariables = async () => {
+    try {
+      const response = await api.get('/config');
+      if (response.data?.config) {
+        const vars = Object.entries(response.data.config).map(([name, value]) => ({
+          name,
+          value
+        }));
+        setVariables(vars);
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleVariableCreate = async (config: Config) => {
+    try {
+      setIsError(false);
+      setMessage('Creating variable...');
+      
+      const variable = config.variables[0]?.name || '';
+      const value = config.variables[0]?.value || '';
+      const namespace = config.namespace || '';
+      
+      const response = await api.post(
+        `/config?namespace_uri=${encodeURIComponent(namespace)}&variable_name=${encodeURIComponent(variable)}&variable_value=${encodeURIComponent(value)}`,
+        {
+          namespace_uri: namespace,
+          variables: {
+            [variable]: value
+          }
+        }
+      );
+      
+      setIsError(false);
+      setMessage('Variable created successfully');
+      // Fetch updated variables after creation
+      await fetchVariables();
+    } catch (error: any) {
+      handleError(error);
+    }
+  };
 
   const handleVariableUpdate = async (config: Config) => {
     try {
@@ -31,27 +87,6 @@ export default function Settings() {
       
       setIsError(false);
       setMessage(response.data.message || 'Variable updated successfully');
-    } catch (error: any) {
-      handleError(error);
-    }
-  };
-
-  const handleVariableCreate = async (config: Config) => {
-    try {
-      setIsError(false);
-      setMessage('Creating variable...');
-      
-      const variable = config.variables[0]?.name || '';
-      const value = config.variables[0]?.value || '';
-      const validatedValue = value;
-      
-      await api.post('/config/variable', {
-        name: variable,
-        value: validatedValue
-      });
-      
-      setIsError(false);
-      setMessage('Variable created successfully');
     } catch (error: any) {
       handleError(error);
     }
@@ -87,6 +122,27 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Add Variables List */}
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Current Variables</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {variables.map((variable, index) => (
+              <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <span className="font-medium">{variable.name}</span>
+                <span>{String(variable.value)}</span>
+              </div>
+            ))}
+            {variables.length === 0 && (
+              <p className="text-gray-500">No variables created yet</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Update Variable card remains the same */}
       <Card>
         <CardHeader>
           <CardTitle>Update Variable Value</CardTitle>
